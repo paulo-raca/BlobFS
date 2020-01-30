@@ -2,7 +2,7 @@ import io
 import os
 from enum import IntFlag
 import struct
-import gzip
+import zlib
 import time
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -13,11 +13,11 @@ DIRENTRY_SIZE = PTR_SIZE + ENTRY_SIZE
 
 class InodeFlags(IntFlag):
     IS_DIR = 1
-    GZIPPED = 2  # Only for files 
+    DEFLATE = 2  # Only for files 
 
 
 class BlobCompiler:
-    def __init__(self, compress=True):
+    def __init__(self, compress=False):
         self.blob = io.BytesIO()
         self.cache = {}
         self.compress = compress
@@ -31,11 +31,10 @@ class BlobCompiler:
         return self.cache[data]
     
     def store_compressed_data(self, data):
-        gzdata = gzip.compress(data)
+        zdata = zlib.compress(data)
         
-        if self.compress and len(gzdata) < len(data):
-            #print(f"Storing {data} with gz")
-            return self.store_data(gzdata), InodeFlags.GZIPPED
+        if self.compress and len(zdata) < len(data):
+            return self.store_data(zdata), InodeFlags.DEFLATE
         else: 
             #print(f"Storing {data} without compression")
             return self.store_data(data), 0
@@ -104,7 +103,7 @@ class BlobLoader:
             return ret
         else:
             self.blob.seek(ptr)
-            if flags & InodeFlags.GZIPPED:
+            if flags & InodeFlags.DEFLATE:
                 with gzip.GzipFile(mode="rb", fileobj=self.blob) as stream:
                     return stream.read(size)
             else:
@@ -114,38 +113,26 @@ class BlobLoader:
     def root(self):
         return self.load_entry(0)
 
-def file_to_data(filename):
-    if os.path.isfile(filename):
-        with open(filename, 'rb') as f:
-            return f.read()
-        
-    elif os.path.isdir(filename):
-        return {
-            child: file_to_data(os.path.join(filename, child))
-            for child in os.listdir(filename)
-        }
-            
-    else:
-        raise IOException(f"Invalid path: {filename}")
+
+def compile(data, compress=False):
+    return BlobCompiler(compress=compress).compile(data)
 
 
+def compile_path(path, compress=False):
+    def path_to_data(path):
+        if os.path.isfile(path):
+            with open(path, 'rb') as f:
+                return f.read()
+        elif os.path.isdir(path):
+            return {
+                child: path_to_data(os.path.join(path, child))
+                for child in os.listdir(path)
+            }
+        else:
+            raise IOException(f"Invalid path: {path}")
+    return compile(path_to_data(path), compress=compress)
 
-class handler(FileSystemEventHandler):
-    def on_any_event(self, event):
-        #data = {"Foo": "barsdf", "asdfsdfsfsdf": {"x": "dfdsfssdfsdfsdfdsfsdfsdfdfsdfsdfdsfdsfddfsds", "y":{}}, "x": {"x": "dfdsfsdfsds", "y":{}}}
-        data = file_to_data("..")
-        #print(data)
-        blob = BlobCompiler().compile(data)
-        print(f"Blob: {len(blob)} bytes") 
-        data = BlobLoader(blob).root                 
-        #print(data)
 
-observer = Observer()
-observer.schedule(handler(), ".", recursive=True)
-observer.start()
-try:
-    while True:
-        time.sleep(1)
-except KeyboardInterrupt:
-    observer.stop()
-observer.join()
+def load(blob):
+    return BlobLoader(blob).root
+    
