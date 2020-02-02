@@ -13,7 +13,7 @@ DIRENTRY_SIZE = PTR_SIZE + ENTRY_SIZE
 
 class InodeFlags(IntFlag):
     IS_DIR = 1
-    DEFLATE = 2  # Only for files 
+    DEFLATE = 2  # Only for files
 
 
 class BlobCompiler:
@@ -46,7 +46,7 @@ class BlobCompiler:
             
             entry_table = b''
             for child_name, child_entry in sorted(entry.items()):
-                entry_table += struct.pack("<I", self.store_data(bytes(child_name, "utf-8") + b"\0"))
+                entry_table += struct.pack(">I", self.store_data(bytes(child_name, "utf-8") + b"\0"))
                 entry_table += self.create_entry(child_entry)
             ptr = self.store_data(entry_table)
         else:
@@ -58,7 +58,7 @@ class BlobCompiler:
             size = len(entry)
             ptr, flags = self.store_compressed_data(entry)
 
-        return struct.pack("<BII", flags, size, ptr)
+        return struct.pack(">BII", flags, size, ptr)
     
     
     def compile(self, root):
@@ -89,13 +89,13 @@ class BlobLoader:
     def load_entry(self, ptr):
         self.blob.seek(ptr)
         data = self.blob.read(ENTRY_SIZE)
-        flags, size, ptr = struct.unpack("<BII", data)
+        flags, size, ptr = struct.unpack(">BII", data)
         
         if flags & InodeFlags.IS_DIR:
             ret = {}
             for i in range(size):
                 self.blob.seek(ptr)
-                nameptr, = struct.unpack("<I", self.blob.read(PTR_SIZE))
+                nameptr, = struct.unpack(">I", self.blob.read(PTR_SIZE))
                 name = self.load_string(nameptr)
                 ptr += PTR_SIZE                
                 ret[name] = self.load_entry(ptr)
@@ -104,8 +104,9 @@ class BlobLoader:
         else:
             self.blob.seek(ptr)
             if flags & InodeFlags.DEFLATE:
-                with gzip.GzipFile(mode="rb", fileobj=self.blob) as stream:
-                    return stream.read(size)
+                return zlib.decompress(self.blob.read(size))
+                #with gzip.GzipFile(mode="rb", fileobj=self.blob) as stream:
+                    #return stream.read(size)
             else:
                 return self.blob.read(size)
         
@@ -115,7 +116,9 @@ class BlobLoader:
 
 
 def compile(data, compress=False):
-    return BlobCompiler(compress=compress).compile(data)
+    blob = BlobCompiler(compress=compress).compile(data)
+    assert data == load(blob)
+    return blob
 
 
 def compile_path(path, compress=False):
@@ -135,4 +138,3 @@ def compile_path(path, compress=False):
 
 def load(blob):
     return BlobLoader(blob).root
-    

@@ -13,22 +13,22 @@ def main_create(src, dest, format='raw', watch=False, compress=False, prefix=Non
             blob = bytes(repr(raw_blob), 'utf-8')
         elif format == 'c':
             c_escapes = {
-                b"\x07": b"\\a",
-                b"\x08": b"\\b",
-                b"\x09": b"\\t",
-                b"\x0a": b"\\n",
-                b"\x0b": b"\\v",
-                b"\x0c": b"\\f",
-                b"\x0d": b"\\r",
-                b"\x22": b'\\"',
-                b"\x27": b"\\'",
-                b"\x5c": b"\\\\",
-
+                0x07: b"\\a",
+                0x08: b"\\b",
+                0x09: b"\\t",
+                0x0a: b"\\n",
+                0x0b: b"\\v",
+                0x0c: b"\\f",
+                0x0d: b"\\r",
+                0x22: b'\\"',
+                0x27: b"\\'",
+                0x5c: b"\\\\",
             }
+
             def escape_char(c):
                 if c in c_escapes:
                     return c_escapes[c]
-                if c >= 32 and c <=127:
+                if c >= 32 and c <=127 and c not in b"0123456789abcdef":
                     return bytes([c])
                 return bytes(f"\\x{c:02x}", "utf-8")
             blob = b'"' + b''.join([escape_char(c) for c in raw_blob]) + b'"'

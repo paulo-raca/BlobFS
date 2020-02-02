@@ -5,15 +5,15 @@ On embedded systems, it is often useful to store a read-only, compressed and eff
 
 On linux world, this is often achieved by SquashFS, but it is maybe too complex for a microcontroller environment.
 
-Hence BlobFS is born: You whole filesystem can be stored as a blob in a local variable, and a simple library 
-can provides the usual filesystem APIs. It only supports files and directories, and 
+Hence BlobFS is born: You whole filesystem can be stored as a blob in a local variable, and a simple library
+can provides the usual filesystem APIs. It only supports files and directories, and
 
 Format
 ======
 
 Inode Entry:
-- flags: IS_DIR / IS_FILE, IS_GZIPED
-- length: number of bytes for files, number of entries for directories
+- flags: IS_DIR / IS_FILE, DEFLATE
+- length: number of bytes for files (Uncompressed), number of entries for directories
 - pointer: Pointer to file contents, or to directory contents
 
 Directory contents:
