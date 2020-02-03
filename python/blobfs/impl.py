@@ -46,7 +46,7 @@ class BlobCompiler:
             
             entry_table = b''
             for child_name, child_entry in sorted(entry.items()):
-                entry_table += struct.pack(">I", self.store_data(bytes(child_name, "utf-8") + b"\0"))
+                entry_table += struct.pack("<I", self.store_data(bytes(child_name, "utf-8") + b"\0"))
                 entry_table += self.create_entry(child_entry)
             ptr = self.store_data(entry_table)
         else:
@@ -58,7 +58,7 @@ class BlobCompiler:
             size = len(entry)
             ptr, flags = self.store_compressed_data(entry)
 
-        return struct.pack(">BII", flags, size, ptr)
+        return struct.pack("<IIB", size, ptr, flags)
     
     
     def compile(self, root):
@@ -89,13 +89,13 @@ class BlobLoader:
     def load_entry(self, ptr):
         self.blob.seek(ptr)
         data = self.blob.read(ENTRY_SIZE)
-        flags, size, ptr = struct.unpack(">BII", data)
+        size, ptr, flags = struct.unpack("<IIB", data)
         
         if flags & InodeFlags.IS_DIR:
             ret = {}
             for i in range(size):
                 self.blob.seek(ptr)
-                nameptr, = struct.unpack(">I", self.blob.read(PTR_SIZE))
+                nameptr, = struct.unpack("<I", self.blob.read(PTR_SIZE))
                 name = self.load_string(nameptr)
                 ptr += PTR_SIZE                
                 ret[name] = self.load_entry(ptr)

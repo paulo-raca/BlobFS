@@ -8,8 +8,8 @@ namespace blobfs {
     // ================= Fix byte-order on data structures loaded from the blob =================
 
     static inline uint32_t ntohl(uint32_t n) {
-#if ((__BYTE_ORDER__) == (__ORDER_BIG_ENDIAN__))
-        return data;
+#if ((__BYTE_ORDER__) == (__ORDER_LITTLE_ENDIAN__))
+        return n;
 #else
         return ((n & 0xff) << 24) | ((n & 0xff00) << 8) | ((n >> 8)  & 0xff00) | ((n >> 24) & 0xff);
 #endif
@@ -193,7 +193,7 @@ namespace blobfs {
         return 0;
     }
 
-    int BlobFS::stat(inode_t inode, inode_data_t &inode_data) {
+    int BlobFS::stat(inode_data_t &inode_data, inode_t inode) {
         int ret = load_chunk(&inode_data, inode, sizeof(inode_data_t));
         if (ret) {
             return ret;
@@ -214,7 +214,10 @@ namespace blobfs {
             // open only takes regular files
             return EISDIR;
         }
-
+        if ((inode_data.flags & FLAG_DEFLATE) != 0) {
+            // TODO: Support for compressed files
+            return ENOSYS;
+        }
         file = new UncompressedFileHandle(*this, inode_data, inode);
         return 0;
     }
@@ -228,8 +231,12 @@ namespace blobfs {
         fix_endianess(inode_data);
 
         if ((inode_data.flags & FLAG_DIR) == 0) {
-            // opendir only takes directories
+            // // opendir only takes directories
             return ENOTDIR;
+        }
+        if ((inode_data.flags & FLAG_DEFLATE) != 0) {
+            // Compression is not supported on directory indexes
+            return ENOSYS;
         }
 
         dir = new DirHandle(*this, inode_data, inode);

@@ -22,12 +22,12 @@ namespace blobfs {
 
     /** An inode data */
     typedef struct {
-        /** Inode flags: FLAG_DIR, FLAG_DEFLATE */
-        uint8_t flags;
         /** Size of a regular file (Uncompressed), or number of entries in a directory */
         uint32_t data_size;
         /** Offset of the contents of regular file, or offset to entries (dir_entry_t[data_size]) in a directory */
         offset_t data_offset;
+        /** Inode flags: FLAG_DIR, FLAG_DEFLATE */
+        uint8_t flags;
     } __attribute__((packed)) inode_data_t;
 
     /** Entry of a directory */
@@ -133,25 +133,26 @@ namespace blobfs {
         /**
          * Returns all the metadata of the specified inode
          *
-         * @param[in] inode The inode number being queried
          * @param[out] inode_data metadata of the specified inode
+         * @param[in] inode The inode number being queried
          * @return 0 on success, or errno
          */
-        inline int stat(inode_t inode, inode_data_t &inode_data);
+        int stat(inode_data_t &inode_data, inode_t inode);
 
         /**
          * Returns all the metadata of the specified inode
          *
-         * @param[in] inode The inode number being queried
          * @param[out] inode_data metadata of the specified inode
+         * @param[out] inode The inode number associated with the path
+         * @param[in] path The file path being queried
          * @return 0 on success, or errno
          */
-        inline int stat(inode_t inode, inode_data_t &inode_data, const char* path) {
+        inline int stat(inode_data_t &inode_data, inode_t &inode, const char* path) {
             int ret = lookup(inode, path);
             if (ret) {
                 return ret;
             }
-            return stat(inode, inode_data);
+            return stat(inode_data, inode);
         }
 
     protected:
@@ -189,26 +190,6 @@ namespace blobfs {
          * Frees a strings returned by load_str_chunk
          */
         virtual void free_str(const char* str) = 0;
-
-//         // File reading
-//
-//         off_t (*lseek_p)(void* p, int fd, off_t size, int mode);
-//         ssize_t (*read_p)(void* ctx, int fd, void * dst, size_t size);
-//         ssize_t (*pread_p)(void *ctx, int fd, void * dst, size_t size, off_t offset);
-//         int (*open_p)(void* ctx, const char * path, int flags, int mode);
-//         int (*close_p)(void* ctx, int fd);
-//         int (*fstat_p)(void* ctx, int fd, struct stat * st);
-//         int (*stat_p)(void* ctx, const char * path, struct stat * st);
-//
-//         // Directory listing
-//
-//         DIR* (*opendir_p)(void* ctx, const char* name);
-//         struct dirent* (*readdir_p)(void* ctx, DIR* pdir);
-//         int (*readdir_r_p)(void* ctx, DIR* pdir, struct dirent* entry, struct dirent** out_dirent);
-//         long (*telldir_p)(void* ctx, DIR* pdir);
-//         void (*seekdir_p)(void* ctx, DIR* pdir, long offset);
-//         int (*closedir_p)(void* ctx, DIR* pdir);
-
     };
 
     class FileHandle {

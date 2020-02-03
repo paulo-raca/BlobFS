@@ -24,13 +24,12 @@ def main_create(src, dest, format='raw', watch=False, compress=False, prefix=Non
                 0x27: b"\\'",
                 0x5c: b"\\\\",
             }
-
             def escape_char(c):
                 if c in c_escapes:
                     return c_escapes[c]
-                if c >= 32 and c <=127 and c not in b"0123456789abcdef":
+                if c >= 32 and c <=127:
                     return bytes([c])
-                return bytes(f"\\x{c:02x}", "utf-8")
+                return bytes(f"\\{c:0o}", "utf-8")
             blob = b'"' + b''.join([escape_char(c) for c in raw_blob]) + b'"'
 
         with open(dest, "wb") as f:
